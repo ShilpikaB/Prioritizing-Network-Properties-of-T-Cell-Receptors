@@ -1,4 +1,5 @@
 library(ggplot2)
+library(ggtext)
 library(plyr)
 library(dplyr)
 library(glmnet) 
@@ -164,14 +165,15 @@ main_function = function()
   
   #######  Assortativity matrix ########
   summary(all_data$assortativity)
-  par(mfrow=c(1,2))
-  hist(all_data$assortativity[all_data$Patient_id=="13227011150"],col = "#4371A6",
-       xlab = "Subject", 
-       ylab = "Assortativity", main = "Assortativity of a Subject",
+  par(mfrow=c(1,1))
+  hist(all_data$assortativity[all_data$Patient_id=="1093501642"], freq=FALSE,
+       col = "#4371A6",
+       xlab = "Assortativity", 
+       ylab = "Density", main = "Assortativity of a Subject",
        cex.lab=1.5, cex.axis=1.5, cex.main=1.8, cex.sub=1.5)
-  hist(log(all_data$assortativity[all_data$Patient_id=="13227011150"]),col = "#4371A6",
-       xlab = "Subject", 
-       ylab = "Log(Assortativity)", main = "Log-normal form",
+  hist(log(all_data$assortativity[all_data$Patient_id=="1093501642"]),col = "#4371A6",
+       xlab = "Assortativity", 
+       ylab = "Density", main = "Log-normal form",
        cex.lab=1.5, cex.axis=1.5, cex.main=1.8, cex.sub=1.5)
   
   aggr_assort = ds_data %>%
@@ -289,23 +291,29 @@ main_function = function()
   plot(la_cv)
   
   set.seed(25)
-  la = glmnet(X_scaled, y=y_obsvd, family="binomial", lambda = la_cv$lambda.min, alpha = 1)
+  la = glmnet(X_scaled, y=y_obsvd, family="binomial", lambda = la_cv$lambda.min, 
+              alpha = 1)
   
   round(coef(la)[abs(coef(la)[,1]) > 0,],6)
   
-  plasso_feature_idx = NULL
+  lasso_cv_feature_idx = NULL
   # extract non-zero coefficients 
   for(i in 2:length(coef(la))){
     if(abs(coef(la)[i,1])>0){
-      plasso_feature_idx = c(plasso_feature_idx,i-1)
+      lasso_cv_feature_idx = c(lasso_cv_feature_idx,i-1)
     }
   }
+  
+  # LASSO with permutation tuning
+  set.seed(25)
+  plasso_feature_idx = plassob(X_scaled, y_obsvd, pB=10, SS=0.1)
+  
   
   
   #-----------
   # GROUP LASSO 
   #-----------
-  set.seed(81)
+  set.seed(25)
   X = as.matrix(X_scaled)
   # group index for X variables
   v.group = c(1, rep(2,6), rep(3,6), rep(4,6), rep(5,6), rep(6,6), rep(7,6), rep(8,6),	
@@ -322,6 +330,14 @@ main_function = function()
   grp_lasso_features
   grp_lasso_grp_idx = select_grps(grp_lasso_features)
   grp_lasso_grp_idx
+  
+  
+  
+  # Permutation Tuning
+  set.seed(25)
+  grp_plasso_features = grp_plassob(X, y=y_obsvd, pB=10, SS=0.1)
+  grp_plasso_grp_idx = select_grps(grp_plasso_features)
+  grp_plasso_grp_idx
   
   
 #-------------------------  
@@ -367,11 +383,17 @@ main_function = function()
   summary(cluster_sim)
   
   par(mfrow=c(2,1))
-  hist(as.numeric(mat_cluster[,2]), freq=FALSE, col="lightyellow", xlim=c(0,900), 
-       main="Density of Observed Cluster size", xlab="Observed Cluster size per patient/sample")
-  hist(as.numeric(cluster_sim), freq=FALSE, main="Density of Simulated Cluster size", 
-       col="lightgreen", xlab="Simulated Cluster size per patient/sample", xlim=c(0,900))
+  hist(as.numeric(mat_cluster[,2]), freq=FALSE, col = "#FFFAC2",
+       xlab = "Observed Cluster size per patient/sample from Real Data", 
+       ylab = "Density", 
+       main = "Density of Observed Cluster size",
+       cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
   
+  hist(as.numeric(cluster_sim), freq=FALSE, col = "#BDE496",
+       xlab = "Simulated Cluster size per patient/sample", 
+       ylab = "Density", 
+       main = "Density of Simulated Cluster size",
+       cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
   
 #-------------------------  
 # Simulate Node count data
@@ -990,11 +1012,19 @@ main_function = function()
     }
   }
   
+  
   par(mfrow=c(2,1))
-  hist(as.numeric(mat_trans[,2:8]), freq=FALSE, col="lightyellow", 
-       main="Density of Observed Transitivity data", xlab="Observed Transitivity")
-  hist(as.numeric(transtv_sim), freq=FALSE, main="Density of Simulated Transitivity data", 
-       col="lightgreen", xlab="Simulated Transitivity")
+  hist(as.numeric(mat_trans[,2:8]), col = "#F9C8BE",freq=FALSE,
+       xlab = "Observed Transitivity from Real Data", 
+       ylab = "Density", 
+       main = "Density of Observed Transitivity data",
+       cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
+  
+  hist(as.numeric(transtv_sim), freq=FALSE, col = "#B7E8FF",
+       xlab = "Simulated Transitivity", 
+       ylab = "Density", 
+       main = "Density of Simulated Transitivity data",
+       cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
   
   
   
@@ -1326,6 +1356,8 @@ colnames(X_sim) = c("count_cluster",     "min_node_count",    "q1_node_count" , 
 X_sim_scaled = apply(X_sim, 2, function(y_lim) (y_lim - mean(y_lim)) / sd(y_lim) ^ as.logical(sd(y_lim)))
 
 View(X_sim_scaled)
+
+
 #--------------
 # Response Variable Data Simulation
 #--------------  
@@ -1367,7 +1399,7 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   X_sim_scaled_dwn = subset(trainDown, select = -y_sim_initial)
   
   pB = 10
-  SS = 0.1  # threshold
+  SS = 0.4 # threshold
   true_features_idx = plasso_feature_idx
   len_true_features = length(true_features_idx)
   
@@ -1378,11 +1410,11 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   plasso_df = data.frame() 
   
   
-  exclsv_plasso_sensitivity = vector(length=itr)
-  exclsv_plasso_fdr = vector(length=itr)
-  exclsv_plasso_f1 = vector(length=itr)
-  exclsv_plasso_power = vector(length=len_true_features)
-  exclsv_plasso_df = data.frame()
+  exclsv_lasso_sensitivity = vector(length=itr)
+  exclsv_lasso_fdr = vector(length=itr)
+  exclsv_lasso_f1 = vector(length=itr)
+  exclsv_lasso_power = vector(length=len_true_features)
+  exclsv_lasso_df = data.frame()
   
   #-----------------
   #Lasso with permutation Tuning
@@ -1416,7 +1448,7 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   
   plasso_stability = calc_stability(plasso_df, itr)
   colNames = c("Model", 
-               "True Feature Indexes", 
+               "True_Feature_Indexes", 
                "Sensitivity", 
                "FDR", 
                "F-1", 
@@ -1427,7 +1459,7 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
                              mean(plasso_sensitivity),
                              mean(plasso_fdr),
                              mean(plasso_f1),
-                             paste((plasso_power)/itr, collapse = ", "),
+                             paste((plasso_power)/itr, collapse = ","),
                              plasso_stability)
   colnames(result_plasso)=colNames
   result_plasso
@@ -1437,35 +1469,40 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   #-----------------
   #Exclusive Lasso
   #-----------------
+  #itr = 10
+  
   for(i in 1:itr)
   {
     
-    exclsv_plasso_features_idx = exclsv_plassob(X_sim_scaled_dwn, y_sim_dwn, nlambda = 50)
-    print(paste("EXCLUSIVE PLASSO - Iteration#", i))
+    exclsv_lasso_features_idx = exclsv_lasso(X_sim_scaled_dwn, y_sim_dwn, nlambda = 50)
+    print(paste("EXCLUSIVE LASSO - Iteration#", i))
     print("Feature Indexes: ")
-    print(exclsv_plasso_features_idx)
-    len_feature_idx = length(exclsv_plasso_features_idx)
+    print(exclsv_lasso_features_idx)
+    len_feature_idx = length(exclsv_lasso_features_idx)
     
-    mat_pred_features = matrix(cbind(exclsv_plasso_features_idx,rep(i,len_feature_idx)), nrow = len_feature_idx)
-    exclsv_plasso_df = rbind(exclsv_plasso_df, mat_pred_features)
+    mat_pred_features = matrix(cbind(exclsv_lasso_features_idx,rep(i,len_feature_idx)), 
+                               nrow = len_feature_idx)
+    exclsv_lasso_df = rbind(exclsv_lasso_df, mat_pred_features)
     
-    exclsv_plasso_sensitivity[i] = calc_sensitivity(true_features_idx, exclsv_plasso_features_idx)
-    exclsv_plasso_fdr[i] = calc_fdr(true_features_idx, exclsv_plasso_features_idx)
-    exclsv_plasso_power = exclsv_plasso_power + calc_power(true_features_idx, exclsv_plasso_features_idx)
+    exclsv_lasso_sensitivity[i] = calc_sensitivity(true_features_idx, exclsv_lasso_features_idx)
+    exclsv_lasso_fdr[i] = calc_fdr(true_features_idx, exclsv_lasso_features_idx)
+    exclsv_lasso_power = exclsv_lasso_power + calc_power(true_features_idx, 
+                                                         exclsv_lasso_features_idx)
     
-    exclsv_pre_plasso = 1-exclsv_plasso_fdr[i]
-    exclsv_rec_plasso = exclsv_plasso_sensitivity[i]
-    if(exclsv_pre_plasso + exclsv_rec_plasso > 0){
-      exclsv_plasso_f1[i] = 2*exclsv_pre_plasso*exclsv_rec_plasso/(exclsv_pre_plasso+exclsv_rec_plasso)
+    exclsv_pre_lasso = 1-exclsv_lasso_fdr[i]
+    exclsv_rec_lasso = exclsv_lasso_sensitivity[i]
+    if(exclsv_pre_lasso + exclsv_rec_lasso > 0){
+      exclsv_lasso_f1[i] = 2*exclsv_pre_lasso*exclsv_rec_lasso/
+        (exclsv_pre_lasso+exclsv_rec_lasso)
     }else{
-      exclsv_plasso_f1[i] = 0
+      exclsv_lasso_f1[i] = 0
     }
     
   }
   
-  exclsv_plasso_stability = calc_stability(exclsv_plasso_df, itr)
+  exclsv_lasso_stability = calc_stability(exclsv_lasso_df, itr)
   colNames = c("Model", 
-               "True Feature Indexes",
+               "True_Feature_Indexes",
                "Sensitivity", 
                "FDR", 
                "F-1", 
@@ -1473,11 +1510,11 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
                "Stability")
   result_exclusv_lasso = data.frame("EXCLUSIVE LASSO", 
                                     paste(true_features_idx, collapse=", "), 
-                                    mean(exclsv_plasso_sensitivity),               
-                                    mean(mean(exclsv_plasso_fdr)),                                 
-                                    mean(exclsv_plasso_f1),
-                                    paste((exclsv_plasso_power)/itr, collapse = ", "),
-                                    exclsv_plasso_stability)
+                                    mean(exclsv_lasso_sensitivity),               
+                                    mean(mean(exclsv_lasso_fdr)),                                 
+                                    mean(exclsv_lasso_f1),
+                                    paste((exclsv_lasso_power)/itr, collapse = ","),
+                                    exclsv_lasso_stability)
   colnames(result_exclusv_lasso)=colNames
   result_exclusv_lasso
  
@@ -1555,18 +1592,18 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   
   grp_plasso_stability = calc_stability(grp_plasso_df, itr)
   colNames = c("Model", 
-               "True Group Indexes", 
+               "True_Group_Indexes", 
                "Sensitivity", 
                "FDR", 
                "F-1", 
                "Power", 
                "Stability")
   result_grp_plasso = data.frame("GROUP_PLASSO", 
-                                 paste(grp_lasso_grp_idx, collapse=", "),
+                                 paste(grp_lasso_grp_idx, collapse=","),
                                  mean(grp_plasso_sensitivity),
                                  mean(mean(grp_plasso_fdr)),
                                  mean(grp_plasso_f1),
-                                 paste((grp_plasso_power)/itr, collapse = ", "),
+                                 paste((grp_plasso_power)/itr, collapse = ","),
                                  grp_plasso_stability)
   colnames(result_grp_plasso)=colNames
   result_grp_plasso
@@ -1574,18 +1611,18 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   
   grp_lasso_cv_stability = calc_stability(grp_lasso_cv_df, itr)
   colNames = c("Model", 
-               "True Group Indexes", 
+               "True_Group_Indexes", 
                "Sensitivity", 
                "FDR", 
                "F-1", 
                "Power", 
                "Stability")
   result_grp_lasso_cv = data.frame("GROUP_LASSO_CV", 
-                                   paste(grp_lasso_grp_idx, collapse=", "),
+                                   paste(grp_lasso_grp_idx, collapse=","),
                                    mean(grp_lasso_cv_sensitivity),
                                    mean(mean(grp_lasso_cv_fdr)),
                                    mean(grp_lasso_cv_f1),
-                                   paste((grp_lasso_cv_power)/itr, collapse = ", "),
+                                   paste((grp_lasso_cv_power)/itr, collapse = ","),
                                    grp_lasso_cv_stability)
   colnames(result_grp_lasso_cv)=colNames
   result_grp_lasso_cv
@@ -1741,8 +1778,8 @@ plassob = function(X, y, pB, SS){
 
 ## GROUP LASSO using permutation tuning for a binary phenotype:  
 grp_plassob = function(X, y, pB, SS){
-  X = X_sim_scaled_dwn
-  y = y_sim_dwn
+  #X = X_sim_scaled_dwn
+  #y = y_sim_dwn
   n = nrow(X)
   p = ncol(X)
   Spi = NULL
@@ -1844,71 +1881,11 @@ grp_lasso_cv = function(X, y, lambda_val){
   }
 } 
 
-## Exclusive PLASSO for a binary phenotype:  
-exclsv_plassob = function(X, y, SS, nlambda_val){
-  X = X_sim_scaled_dwn
-  y = y_sim_dwn
-  nlambda_val = 100
-  
-  y[y == -1] = 0
-  n = nrow(X)
-  p = ncol(X)
-  Spi = NULL
-  # group index for X variables
-  v.group = c(1, rep(2,6), rep(3,6),	rep(4,6),	rep(5,6),	rep(6,6),	rep(7,6),	rep(8,6),	
-              rep(9,7),	rep(10,7), rep(11,6), rep(12,6), rep(13,7), rep(14,6), rep(15,7))
-  
-  
-  mat_X = as.matrix(X)
-  a = exclusive_lasso(mat_X, y, groups = v.group, family="binomial", intercept = FALSE, 
-                      standardize = FALSE, algorithm = "pg", nlambda=nlambda_val, 
-                      lambda=seq(0.15,3,0.01))
-    
-  #a$lambda
-  #View(a$coef[,100])
-  a$coef
-  sum(abs(a$coef[,100]))
-  sum(abs(a$coef[,100]!=0))
-  
-  mat_X = as.matrix(X[c(sample(nrow(X))), ])
-  a_X = exclusive_lasso(mat_X, y, groups = v.group, family="binomial", intercept = FALSE, 
-                      standardize = FALSE, algorithm = "pg", nlambda=nlambda_val, lambda=sort(a$lambda))
-  
-  sum(abs(a_X$coef[,100]))
-  
-  
-  max(a_X$lambda)
-  View(a_X$coef[2,])
-  max(a$lambda)
-  for(i in 1:nlambda_val){
-    i=100
-    if(sum(a_X$coef[,i])==0){
-      min_lambda = a_X$lambda[i] 
-      idx = i
-    }
-  }
-  
-  a$coef[,idx]
-    
-  for(i in 1:length(a$coef[,idx])){
-    if(abs(a$coef[i,idx]) > 0){
-      Spi = c(Spi,i)
-    }
-  }
-    
-    if(length(Spi)>0){
-      return(Spi)
-    }
-    else{
-      return(0)
-    }
-} 
-
 ## Exclusive LASSO for a binary phenotype:  
-exclsv_lasso = function(X, y, SS, nlambda_val){
-  X = X_sim_scaled_dwn
-  y = y_sim_dwn
-  nlambda_val = 10
+exclsv_lasso = function(X, y, nlambda_val){
+  #X = X_sim_scaled_dwn
+  #y = y_sim_dwn
+  nlambda_val = 50
   
   y[y == -1] = 0
   n = nrow(X)
@@ -1920,11 +1897,19 @@ exclsv_lasso = function(X, y, SS, nlambda_val){
   
   
   mat_X = as.matrix(X)
-  a = exclusive_lasso(mat_X, y, groups = v.group, family="binomial", intercept = FALSE, 
-                      standardize = FALSE, algorithm = "pg", nlambda=nlambda_val)
   
-  for(i in 1:length(a$coef[,nlambda_val])){
-    if(abs(a$coef[i,nlambda_val]) > 0){
+  # Cross Validation
+  exclusv_cv = cv.exclusive_lasso(mat_X, y, groups = v.group, intercept = F, 
+                                  family="binomial",nfolds=5, standardize = FALSE, 
+                                  algorithm = "pg", nlambda=nlambda_val)
+  
+  
+  a = exclusive_lasso(mat_X, y,lambda = exclusv_cv$lambda.1se,
+                      groups = v.group, family="binomial", intercept = FALSE,
+                      standardize = FALSE, algorithm = "pg")
+  
+  for(i in 1:length(a$coef[,1])){
+    if(abs(a$coef[i,1]) > 0){
       Spi = c(Spi,i)
     }
   }
@@ -2129,9 +2114,9 @@ cluster_level_untreated_patients = all_data%>%
                    max_node_count = max(node_count))
 
 ds1 = data.frame(cluster_level_treated_patients, 
-                                  rep("Treated",dim(cluster_level_treated_patients)[1]))
+                                  rep("Longer Survival",dim(cluster_level_treated_patients)[1]))
 ds2 = data.frame(cluster_level_untreated_patients, 
-           rep("Untreated",dim(cluster_level_untreated_patients)[1]))
+           rep("Shorter Survival",dim(cluster_level_untreated_patients)[1]))
 
 colnames(ds1)[4]="class"
 colnames(ds2)[4]="class"
@@ -2143,17 +2128,23 @@ aggreg_cluster_level = rbind(ds1,ds2)
 ggplot(aggreg_cluster_level, aes(x = class, y = max_clusters, 
                                  group=class,fill = class)) + 
   geom_boxplot()+scale_fill_manual(values=c("#00C8FF","#FF80CA"))+ 
-  ggtitle("# of clusters in Treated and Untreated Subjects") +
+  ggtitle("# of Clusters in Longer and Shorter Survival Groups") +
   ylab("# of Clusters")+
-  theme(axis.text.x=element_text(size=rel(1.5)))
+  theme(axis.text=element_text(size=rel(1.2),face="bold"),plot.title = element_text(size=rel(1.5)),
+        axis.title=element_text(size=rel(1.5)),
+        legend.title = element_text(size=rel(1.5)), #change legend title font size
+        legend.text = element_text(size=rel(1.5)))
 
 
 ggplot(aggreg_cluster_level, aes(x = class, y = max_node_count, fill = class, group=class)) + 
   geom_boxplot()+
   scale_fill_manual(values=c("#00FFC6","#FF5D00"))+ 
-  ggtitle("# of nodes in Treated and Untreated Subjects") +
+  ggtitle("# of Nodes in Longer and Shorter Survival Groups") +
   ylab("# of Nodes")+
-  theme(axis.text.x=element_text(size=rel(1.5)))
+  theme(axis.text=element_text(size=rel(1.2),face="bold"),plot.title = element_text(size=rel(1.5)),
+        axis.title=element_text(size=rel(1.5)),
+        legend.title = element_text(size=rel(1.5)), #change legend title font size
+        legend.text = element_text(size=rel(1.5)))
 
 +
   stat_summary(fun = "mean", geom = "point", shape = 8,
