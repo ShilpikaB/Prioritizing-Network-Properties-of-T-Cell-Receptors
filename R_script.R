@@ -340,6 +340,12 @@ main_function = function()
   grp_plasso_grp_idx
   
   
+  #------------
+  # Exclusive Lasso with Cross Validation
+  #------------
+  exclsv_lasso_features_idx = exclsv_lasso(X, y_obsvd, nlambda = 50)
+  exclsv_lasso_features_idx
+  
 #-------------------------  
 # Simulate # of clusters in each sample
 #-------------------------     
@@ -1469,7 +1475,6 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   #-----------------
   #Exclusive Lasso
   #-----------------
-  #itr = 10
   
   for(i in 1:itr)
   {
@@ -1508,8 +1513,8 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
                "F-1", 
                "Power", 
                "Stability")
-  result_exclusv_lasso = data.frame("EXCLUSIVE LASSO", 
-                                    paste(true_features_idx, collapse=", "), 
+  result_exclusv_lasso = data.frame("EXCLUSIVE_LASSO", 
+                                    paste(true_features_idx, collapse=","), 
                                     mean(exclsv_lasso_sensitivity),               
                                     mean(mean(exclsv_lasso_fdr)),                                 
                                     mean(exclsv_lasso_f1),
@@ -1744,6 +1749,8 @@ calc_stability = function(df, itr){
 
 # plasso for a binary phenotype:  
 plassob = function(X, y, pB, SS){
+  #X = X_sim_scaled_dwn
+  #y = y_sim_dwn
   n = nrow(X)
   p = ncol(X)
   Spi = NULL
