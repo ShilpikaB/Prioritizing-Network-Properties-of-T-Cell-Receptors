@@ -371,16 +371,16 @@ main_function = function()
   
   
   par(mfrow=c(1,2))
-  hist(membership_sample$max_mem, col = "#90C0AF",
+  hist(membership_sample$max_mem, col = "#90C0AF", freq=FALSE,
        xlab = "# of clusters per subject", 
-       ylab = "Frequency", 
-       main = "Frequency of clusters per subject",
+       ylab = "Density", 
+       main = "Distribution of clusters per subject",
        cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
   
-  hist(log(membership_sample$max_mem), col = "#90C0AF",
+  hist(log(membership_sample$max_mem), col = "#90C0AF", freq=FALSE,
        xlab = "# (Log count) clusters per subject", 
-       ylab = "Frequency", 
-       main = "Frequency of clusters per subject",
+       ylab = "Density", 
+       main = "Distribution of clusters per subject",
        cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)# approx normal
   
   
