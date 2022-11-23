@@ -8,6 +8,7 @@ library(gglasso)
 library(aod)
 library(MLmetrics)
 library(caret)
+library(Rlab)
 
 library(devtools)
 #install_github("DataSlingers/ExclusiveLasso")
@@ -199,6 +200,9 @@ main_function = function()
                      max_trans = max(transitivity, na.rm=TRUE))
   #head(aggr_trans)
   
+  colnames(aggr_trans)
+  aggr_trans%>%filter(Patient_id=="1093501642")
+  
   par(mfrow=c(1,2))
   hist(all_data$transitivity[all_data$Patient_id=="1093501642"], freq=FALSE,
        col = "#4371A6",
@@ -372,15 +376,15 @@ main_function = function()
   
   par(mfrow=c(1,2))
   hist(membership_sample$max_mem, col = "#90C0AF", freq=FALSE,
-       xlab = "# of clusters per subject", 
+       xlab = "# of Clusters", 
        ylab = "Density", 
-       main = "Distribution of clusters per subject",
+       main = "Distribution of # of Clusters",
        cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
   
-  hist(log(membership_sample$max_mem), col = "#90C0AF", freq=FALSE,
-       xlab = "# (Log count) clusters per subject", 
+  hist(log(membership_sample$max_mem), col = "#D1BED1", freq=FALSE,
+       xlab = "# (Log count) Clusters", 
        ylab = "Density", 
-       main = "Distribution of clusters per subject",
+       main = "Distribution of (Log count) of Clusters",
        cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)# approx normal
   
   
@@ -425,8 +429,8 @@ main_function = function()
   sum(aggr_nodes)
   aggr_nodes
   
-  hist(ds_data$node_count[ds_data$node_count>3])
-  hist(log(ds_data$node_count[ds_data$node_count>3]))
+  hist(ds_data$node_count[ds_data$node_count>3], freq=FALSE)
+  hist(log(ds_data$node_count[ds_data$node_count>3]), freq=FALSE)
   
   mean_node_grt_2 = mean(ds_data$node_count[ds_data$node_count>2])
   sd_node_grt_2 = sd((ds_data$node_count[ds_data$node_count>2]))
@@ -465,10 +469,11 @@ main_function = function()
   }
   
   par(mfrow=c(2,1))
-  hist(as.numeric(mat_node_count[, 2:7]), freq=FALSE, col="lightyellow", 
+  hist(as.numeric(mat_node_count[, 2:7]), freq=FALSE, col = "#FFFAC2", 
        main="Density of Observed Node Count data", xlab="Observed ")
-  hist(as.numeric(nodes_sim), freq=FALSE, main="Density of Simulated Node Count data", 
-       col="lightgreen", xlab="SimulatedNode Count")
+  hist(as.numeric(nodes_sim), freq=FALSE, 
+       main="Density of Simulated Node Count data", 
+       col = "#BDE496", xlab="SimulatedNode Count")
   
 
 #-------------------------  
@@ -952,11 +957,20 @@ main_function = function()
     }
   }
   
+  
   par(mfrow=c(2,1))
-  hist(as.numeric(mat_assort[,2:8]), freq=FALSE, col="lightyellow", xlim=c(-1,1),
-       main="Density of Observed Assortativity data", xlab="Observed Assortativity")
-  hist(as.numeric(assort_sim), freq=FALSE, main="Density of Simulated Assortativity data", 
-       col="lightgreen", xlab="Simulated Assortativity", xlim=c(-1,1))
+  hist(as.numeric(mat_assort[,2:8]), col = "#FFFAC2",freq=FALSE,
+       xlab = "Observed Assortativity from Real Data", 
+       ylab = "Density", 
+       main = "Density of Observed Assortativity data",
+       cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
+  
+  hist(as.numeric(assort_sim), freq=FALSE, col = "#BDE496",
+       xlab = "Simulated Assortativity", 
+       ylab = "Density", 
+       main = "Density of Simulated Assortativity data",
+       cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
+  
   
   
   
@@ -973,16 +987,19 @@ main_function = function()
     dplyr::summarize(prob_NA = sum(is.na(transitivity))/n(), 
                      prob_0 = sum(transitivity == 0, na.rm = T)/n(), 
                      prob_1 = sum(transitivity == 1, na.rm = T)/n(),
-                     prob_num = sum(transitivity > 0, na.rm = T)/n() - sum(transitivity == 1, na.rm = T)/n())
+                     prob_num = sum(transitivity > 0, na.rm = T)/n() 
+                     - sum(transitivity == 1, na.rm = T)/n())
   sum(transtv_prob)
   transtv_prob
   
   hist(ds_data$transitivity[ds_data$transitivity > 0 & ds_data$transitivity != 1])
   hist(log(ds_data$transitivity[ds_data$transitivity > 0 & ds_data$transitivity != 1]))
   
-  trans_mean = mean(log(ds_data$transitivity[ds_data$transitivity > 0 & ds_data$transitivity != 1]), 
+  trans_mean = mean(log(ds_data$transitivity[ds_data$transitivity > 0 
+                                             & ds_data$transitivity != 1]), 
                     na.rm=T)
-  trans_sd = sd(log(ds_data$transitivity[ds_data$transitivity > 0 & ds_data$transitivity != 1]), 
+  trans_sd = sd(log(ds_data$transitivity[ds_data$transitivity > 0 
+                                         & ds_data$transitivity != 1]), 
                 na.rm=T)
   
   
@@ -1031,13 +1048,13 @@ main_function = function()
   
   
   par(mfrow=c(2,1))
-  hist(as.numeric(mat_trans[,2:8]), col = "#F9C8BE",freq=FALSE,
+  hist(as.numeric(mat_trans[,2:8]), col = "#FFFAC2",freq=FALSE,
        xlab = "Observed Transitivity from Real Data", 
        ylab = "Density", 
        main = "Density of Observed Transitivity data",
        cex.lab=1.2, cex.axis=1.2, cex.main=1.5, cex.sub=1.2)
   
-  hist(as.numeric(transtv_sim), freq=FALSE, col = "#B7E8FF",
+  hist(as.numeric(transtv_sim), freq=FALSE, col = "#BDE496",
        xlab = "Simulated Transitivity", 
        ylab = "Density", 
        main = "Density of Simulated Transitivity data",
@@ -1381,8 +1398,8 @@ X_sim_scaled = apply(X_sim, 2, function(y_lim) (y_lim - mean(y_lim)) / sd(y_lim)
 # y is Bernoulli rvs
 # y = 1 with probability pr(i)
 # y = 0 with probability 1-pr(i)
-# P(Y|X=i) = pr(i) = 1/(1+exp(-(z)))
-# 1-pr(i) = exp(-(z))/(1+exp(-(z))) 
+# P(Y=1|X=i) = pr(i) = exp(z)/(1+exp(z))
+# P(Y=0|X=i) = 1-pr(i) = 1/(1+exp(z)) 
 # z = b0 + (b1 * max_cnt_pre_infu) + (b2 * max_egn_cen) + (b3 * max_cen_egn) + (b4 * max_dia_len) 
 # b0: coefficient of intercept 
 # b1: coefficient of max_cnt_pre_infu 
@@ -1619,7 +1636,9 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   #-----------------
   #Group Lasso with permutation Tuning and cross validation
   #-----------------
-  true_features_idx = c(5,8,14,15) #grp_lasso_grp_idx
+  
+  #true_features_idx = grp_lasso_grp_idx # Using group_lasso_cv as reference
+  true_features_idx = c(5,8,14,15) # Using lasso_cv as reference
   len_true_features = length(true_features_idx)
   
   grp_plasso_sensitivity = vector(length=itr)
@@ -1789,10 +1808,10 @@ y_sim_from_lasso_coeffs = function(la, X_sim_scaled, artifical){
   df = cbind(X_sim_scaled[,25],X_sim_scaled[,82],X_sim_scaled[,89],X_sim_scaled[,43])
   z = beta_coef[1] + beta_coef[2]*df[,1] + beta_coef[3]*df[,2] + beta_coef[4]*df[,3] + beta_coef[5]*df[,4]
   
-  prob = 1/(1+exp(-z))
+  prob = exp(z)/(1+exp(z))
   
   set.seed(81)
-  y_sim = rbinom(n, 1, prob)
+  y_sim = rbern(n, prob)
   return(y_sim)
 }
 
