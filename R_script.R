@@ -1429,216 +1429,20 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
 # Iterations
   itr = 10
   y_sim_dwn = trainDown$y_sim_initial
+  dim(X_sim_scaled_dwn)
   y_sim_dwn[y_sim_dwn == 0] = -1
   X_sim_scaled_dwn = subset(trainDown, select = -y_sim_initial)
   
   pB = 10
   SS = 0.4 # threshold
-  true_features_idx = plasso_feature_idx
-  len_true_features = length(true_features_idx)
   
-  plasso_sensitivity = vector(length=itr)
-  plasso_fdr = vector(length=itr)
-  plasso_f1 = vector(length=itr)
-  plasso_power = vector(length=len_true_features)
-  plasso_df = data.frame() 
-  
-  lasso_cv_sensitivity = vector(length=itr)
-  lasso_cv_fdr = vector(length=itr)
-  lasso_cv_f1 = vector(length=itr)
-  lasso_cv_power = vector(length=len_true_features)
-  lasso_cv_df = data.frame() 
-  
-  exclsv_lasso_sensitivity = vector(length=itr)
-  exclsv_lasso_fdr = vector(length=itr)
-  exclsv_lasso_f1 = vector(length=itr)
-  exclsv_lasso_power = vector(length=len_true_features)
-  exclsv_lasso_df = data.frame()
-  
-  #-----------------
-  #LASSO
-  #-----------------
-  # Lasso with permutation tuning
-  set.seed(25)
-  for(i in 1:itr)
-  {
-    
-    true_features_idx = plasso_feature_idx
-    plasso_features_idx = plassob(X_sim_scaled_dwn, y_sim_dwn, pB, SS)
-    print(paste("PLASSO - Iteration#", i))
-    print("Feature Indexes: ")
-    print(plasso_features_idx)
-    len_feature_idx = length(plasso_features_idx)
-    
-    mat_pred_features = matrix(cbind(plasso_features_idx,rep(i,len_feature_idx)), nrow = len_feature_idx)
-    plasso_df = rbind(plasso_df, mat_pred_features)
-    
-    
-    plasso_sensitivity[i] = calc_sensitivity(true_features_idx, plasso_features_idx)
-    plasso_fdr[i] = calc_fdr(true_features_idx, plasso_features_idx)
-    plasso_power = plasso_power + calc_power(true_features_idx, plasso_features_idx)
-    # Precision = 1-FDR
-    # Recall = Sensitivity
-    # F1 = 2*precision*recall/(precision+recall) = 2*(1-FDR)*Sensitivity/{(1-FDR)+Sensitivity}
-    pre_plasso = 1-plasso_fdr[i]
-    rec_plasso = plasso_sensitivity[i]
-    if(pre_plasso + rec_plasso > 0){
-      plasso_f1[i] = 2*pre_plasso*rec_plasso/(pre_plasso+rec_plasso)
-    }else{
-      plasso_f1[i] = 0
-    }
-  }
-  plasso_stability = calc_stability(plasso_df, itr)
-  colNames = c("Model", 
-               "True_Feature_Indexes", 
-               "Sensitivity", 
-               "FDR", 
-               "F-1", 
-               "Power", 
-               "Stability")
-  result_plasso = data.frame("PLASSO", 
-                             paste(plasso_feature_idx,collapse=","), 
-                             mean(plasso_sensitivity),
-                             mean(plasso_fdr),
-                             mean(plasso_f1),
-                             paste((plasso_power)/itr, collapse = ","),
-                             plasso_stability)
-  colnames(result_plasso)=colNames
-  result_plasso
-  
-  # Lasso with cross validation
-  set.seed(25)
-  for(i in 1:itr)
-  {
-    
-    true_features_idx = plasso_feature_idx
-    la_cv_sim = cv.glmnet(as.matrix(X_sim_scaled_dwn), y_sim_dwn, 
-                          family="binomial", nfolds=5)
-    la_sim = glmnet(as.matrix(X_sim_scaled_dwn), y_sim_dwn, family="binomial", 
-                lambda = la_cv_sim$lambda.1se, 
-                alpha = 1)
-    
-    lasso_cv_feature_idx = NULL
-    # extract non-zero coefficients 
-    for(j in 2:length(coef(la_sim))){
-      if(abs(coef(la_sim)[j,1])>0){
-        lasso_cv_feature_idx = c(lasso_cv_feature_idx,j-1)
-      }
-    }
-    if(length(lasso_cv_feature_idx)==0){
-      lasso_cv_feature_idx = 0
-    }
-    
-    print(paste("LASSO - Iteration#", i))
-    print("Feature Indexes: ")
-    print(lasso_cv_feature_idx)
-    len_feature_idx = length(lasso_cv_feature_idx)
-    
-    mat_pred_features = matrix(cbind(lasso_cv_feature_idx,
-                                     rep(i,len_feature_idx)), nrow = len_feature_idx)
-    lasso_cv_df = rbind(lasso_cv_df, mat_pred_features)
-    
-    lasso_cv_sensitivity[i] = calc_sensitivity(true_features_idx, lasso_cv_feature_idx)
-    #if(length(lasso_cv_feature_idx) == 1 && lasso_cv_feature_idx == 0){
-      #lasso_cv_fdr[i] = 1
-    #}else{
-      lasso_cv_fdr[i] = calc_fdr(true_features_idx, lasso_cv_feature_idx)
-    #}
-    
-    lasso_cv_power = lasso_cv_power + calc_power(true_features_idx, lasso_cv_feature_idx)
-    # Precision = 1-FDR
-    # Recall = Sensitivity
-    # F1 = 2*precision*recall/(precision+recall) = 2*(1-FDR)*Sensitivity/{(1-FDR)+Sensitivity}
-    pre_lasso_cv = 1-lasso_cv_fdr[i]
-    rec_lasso_cv = lasso_cv_sensitivity[i]
-    if(pre_lasso_cv + rec_lasso_cv > 0){
-      lasso_cv_f1[i] = 2*pre_lasso_cv*rec_lasso_cv/(pre_lasso_cv+rec_lasso_cv)
-    }else if(rec_lasso_cv == FALSE){
-      lasso_cv_f1[i] = 0
-    }else{
-      lasso_cv_f1[i] = 0
-    }
-  }
-  
-  
-  
-  lasso_cv_stability = calc_stability(lasso_cv_df, itr)
-  colNames = c("Model", 
-               "True_Feature_Indexes", 
-               "Sensitivity", 
-               "FDR", 
-               "F-1", 
-               "Power", 
-               "Stability")
-  result_lasso_cv = data.frame("LASSO_CV", 
-                                paste(plasso_feature_idx,collapse=","), 
-                                mean(lasso_cv_sensitivity),
-                                mean(lasso_cv_fdr),
-                                mean(lasso_cv_f1),
-                                paste((lasso_cv_power)/itr, collapse = ","),
-                                lasso_cv_stability)
-  colnames(result_lasso_cv)=colNames
-  result_lasso_cv
-  
-  
- 
-  #-----------------
-  #Exclusive Lasso with Cross Validation
-  #-----------------
-  
-  for(i in 1:itr)
-  {
-    
-    exclsv_lasso_features_idx = exclsv_lasso(X_sim_scaled_dwn, y_sim_dwn, nlambda = 50)
-    print(paste("EXCLUSIVE LASSO - Iteration#", i))
-    print("Feature Indexes: ")
-    print(exclsv_lasso_features_idx)
-    len_feature_idx = length(exclsv_lasso_features_idx)
-    
-    mat_pred_features = matrix(cbind(exclsv_lasso_features_idx,rep(i,len_feature_idx)), 
-                               nrow = len_feature_idx)
-    exclsv_lasso_df = rbind(exclsv_lasso_df, mat_pred_features)
-    
-    exclsv_lasso_sensitivity[i] = calc_sensitivity(true_features_idx, exclsv_lasso_features_idx)
-    exclsv_lasso_fdr[i] = calc_fdr(true_features_idx, exclsv_lasso_features_idx)
-    exclsv_lasso_power = exclsv_lasso_power + calc_power(true_features_idx, 
-                                                         exclsv_lasso_features_idx)
-    
-    exclsv_pre_lasso = 1-exclsv_lasso_fdr[i]
-    exclsv_rec_lasso = exclsv_lasso_sensitivity[i]
-    if(exclsv_pre_lasso + exclsv_rec_lasso > 0){
-      exclsv_lasso_f1[i] = 2*exclsv_pre_lasso*exclsv_rec_lasso/
-        (exclsv_pre_lasso+exclsv_rec_lasso)
-    }else{
-      exclsv_lasso_f1[i] = 0
-    }
-    
-  }
-  
-  exclsv_lasso_stability = calc_stability(exclsv_lasso_df, itr)
-  colNames = c("Model", 
-               "True_Feature_Indexes",
-               "Sensitivity", 
-               "FDR", 
-               "F-1", 
-               "Power", 
-               "Stability")
-  result_exclusv_lasso = data.frame("EXCLUSIVE_LASSO", 
-                                    paste(true_features_idx, collapse=","), 
-                                    mean(exclsv_lasso_sensitivity),               
-                                    mean(mean(exclsv_lasso_fdr)),                                 
-                                    mean(exclsv_lasso_f1),
-                                    paste((exclsv_lasso_power)/itr, collapse = ","),
-                                    exclsv_lasso_stability)
-  colnames(result_exclusv_lasso)=colNames
-  result_exclusv_lasso
- 
   #-----------------
   #Group Lasso with permutation Tuning and cross validation
   #-----------------
   
   #true_features_idx = grp_lasso_grp_idx # Using group_lasso_cv as reference
-  true_features_idx = c(5,8,14,15) # Using lasso_cv as reference
+  #true_features_idx = c(5,8,14,15) # Using lasso_cv as reference
+  true_features_idx = c(1,5,6,8,14,15) # Using lasso_cv as reference
   len_true_features = length(true_features_idx)
   
   grp_plasso_sensitivity = vector(length=itr)
@@ -1711,6 +1515,13 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
     }
   }
   
+  grp_lasso_cv_df%>%
+    dplyr::group_by(V1)%>%
+    dplyr::summarize(n())
+  
+  grp_plasso_df%>%
+    dplyr::group_by(V1)%>%
+    dplyr::summarize(n())
   
   grp_plasso_stability = calc_stability(grp_plasso_df, itr)
   colNames = c("Model", 
@@ -1749,8 +1560,215 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   colnames(result_grp_lasso_cv)=colNames
   result_grp_lasso_cv
   
+  #-----------------
+  # LASSO
+  #-----------------
+  true_features_idx = plasso_feature_idx
+  len_true_features = length(true_features_idx)
+  
+  plasso_sensitivity = vector(length=itr)
+  plasso_fdr = vector(length=itr)
+  plasso_f1 = vector(length=itr)
+  plasso_power = vector(length=len_true_features)
+  plasso_df = data.frame() 
+  
+  lasso_cv_sensitivity = vector(length=itr)
+  lasso_cv_fdr = vector(length=itr)
+  lasso_cv_f1 = vector(length=itr)
+  lasso_cv_power = vector(length=len_true_features)
+  lasso_cv_df = data.frame() 
+  
+  # Lasso with cross validation
+  set.seed(25)
+  for(i in 1:itr)
+  {
+    true_features_idx = plasso_feature_idx
+    la_cv_sim = cv.glmnet(as.matrix(X_sim_scaled_dwn), y_sim_dwn, 
+                          family="binomial", nfolds=5)
+    la_sim = glmnet(as.matrix(X_sim_scaled_dwn), y_sim_dwn, family="binomial", 
+                lambda = la_cv_sim$lambda.1se, 
+                alpha = 1)
+    
+    lasso_cv_feature_idx = NULL
+    # extract non-zero coefficients 
+    for(j in 2:length(coef(la_sim))){
+      if(abs(coef(la_sim)[j,1])>0){
+        lasso_cv_feature_idx = c(lasso_cv_feature_idx,j-1)
+      }
+    }
+    if(length(lasso_cv_feature_idx)==0){
+      lasso_cv_feature_idx = 0
+    }
+    
+    print(paste("LASSO - Iteration#", i))
+    print("Feature Indexes: ")
+    print(lasso_cv_feature_idx)
+    len_feature_idx = length(lasso_cv_feature_idx)
+    
+    mat_pred_features = matrix(cbind(lasso_cv_feature_idx,
+                                     rep(i,len_feature_idx)), nrow = len_feature_idx)
+    lasso_cv_df = rbind(lasso_cv_df, mat_pred_features)
+    
+    lasso_cv_sensitivity[i] = calc_sensitivity(true_features_idx, lasso_cv_feature_idx)
+    #if(length(lasso_cv_feature_idx) == 1 && lasso_cv_feature_idx == 0){
+      #lasso_cv_fdr[i] = 1
+    #}else{
+      lasso_cv_fdr[i] = calc_fdr(true_features_idx, lasso_cv_feature_idx)
+    #}
+    
+    lasso_cv_power = lasso_cv_power + calc_power(true_features_idx, lasso_cv_feature_idx)
+    # Precision = 1-FDR
+    # Recall = Sensitivity
+    # F1 = 2*precision*recall/(precision+recall) = 2*(1-FDR)*Sensitivity/{(1-FDR)+Sensitivity}
+    pre_lasso_cv = 1-lasso_cv_fdr[i]
+    rec_lasso_cv = lasso_cv_sensitivity[i]
+    if(pre_lasso_cv + rec_lasso_cv > 0){
+      lasso_cv_f1[i] = 2*pre_lasso_cv*rec_lasso_cv/(pre_lasso_cv+rec_lasso_cv)
+    }else if(rec_lasso_cv == FALSE){
+      lasso_cv_f1[i] = 0
+    }else{
+      lasso_cv_f1[i] = 0
+    }
+  }
+  
+  lasso_cv_stability = calc_stability(lasso_cv_df, itr)
+  colNames = c("Model", 
+               "True_Feature_Indexes", 
+               "Sensitivity", 
+               "FDR", 
+               "F-1", 
+               "Power", 
+               "Stability")
+  result_lasso_cv = data.frame("LASSO_CV", 
+                               paste(plasso_feature_idx,collapse=","), 
+                               mean(lasso_cv_sensitivity),
+                               mean(lasso_cv_fdr),
+                               mean(lasso_cv_f1),
+                               paste((lasso_cv_power)/itr, collapse = ","),
+                               lasso_cv_stability)
+  colnames(result_lasso_cv)=colNames
   
   
+  # Lasso with permutation tuning
+  set.seed(25)
+  for(i in 1:itr)
+  {
+    true_features_idx = plasso_feature_idx
+    plasso_features_idx = plassob(X_sim_scaled_dwn, y_sim_dwn, pB, SS)
+    print(paste("PLASSO - Iteration#", i))
+    print("Feature Indexes: ")
+    print(plasso_features_idx)
+    len_feature_idx = length(plasso_features_idx)
+    
+    mat_pred_features = matrix(cbind(plasso_features_idx,rep(i,len_feature_idx)), nrow = len_feature_idx)
+    plasso_df = rbind(plasso_df, mat_pred_features)
+    
+    
+    plasso_sensitivity[i] = calc_sensitivity(true_features_idx, plasso_features_idx)
+    plasso_fdr[i] = calc_fdr(true_features_idx, plasso_features_idx)
+    plasso_power = plasso_power + calc_power(true_features_idx, plasso_features_idx)
+    # Precision = 1-FDR
+    # Recall = Sensitivity
+    # F1 = 2*precision*recall/(precision+recall) = 2*(1-FDR)*Sensitivity/{(1-FDR)+Sensitivity}
+    pre_plasso = 1-plasso_fdr[i]
+    rec_plasso = plasso_sensitivity[i]
+    if(pre_plasso + rec_plasso > 0){
+      plasso_f1[i] = 2*pre_plasso*rec_plasso/(pre_plasso+rec_plasso)
+    }else{
+      plasso_f1[i] = 0
+    }
+  }
+  plasso_stability = calc_stability(plasso_df, itr)
+  colNames = c("Model", 
+               "True_Feature_Indexes", 
+               "Sensitivity", 
+               "FDR", 
+               "F-1", 
+               "Power", 
+               "Stability")
+  result_plasso = data.frame("PLASSO", 
+                             paste(plasso_feature_idx,collapse=","), 
+                             mean(plasso_sensitivity),
+                             mean(plasso_fdr),
+                             mean(plasso_f1),
+                             paste((plasso_power)/itr, collapse = ","),
+                             plasso_stability)
+  colnames(result_plasso)=colNames
+  
+ 
+  # Display the frequency of the selected features across the 10 iterations
+  lasso_cv_feature_freq = lasso_cv_df%>%
+    dplyr::group_by(V1)%>%
+    dplyr::summarize(freq=n())
+
+  plasso_feature_freq = plasso_df%>%
+    dplyr::group_by(V1)%>%
+    dplyr::summarize(freq=n())
+  
+  lasso_cv_feature_freq
+  plasso_feature_freq
+  
+  
+ # Display Lasso_CV and Plasso results from simulation study
+  result_lasso_cv
+  result_plasso
+  
+ 
+  #-----------------
+  #Exclusive Lasso with Cross Validation
+  #-----------------
+  exclsv_lasso_sensitivity = vector(length=itr)
+  exclsv_lasso_fdr = vector(length=itr)
+  exclsv_lasso_f1 = vector(length=itr)
+  exclsv_lasso_power = vector(length=len_true_features)
+  exclsv_lasso_df = data.frame()
+  
+  for(i in 1:itr)
+  {
+    exclsv_lasso_features_idx = exclsv_lasso(X_sim_scaled_dwn, y_sim_dwn, nlambda = 50)
+    print(paste("EXCLUSIVE LASSO - Iteration#", i))
+    print("Feature Indexes: ")
+    print(exclsv_lasso_features_idx)
+    len_feature_idx = length(exclsv_lasso_features_idx)
+    
+    mat_pred_features = matrix(cbind(exclsv_lasso_features_idx,rep(i,len_feature_idx)), 
+                               nrow = len_feature_idx)
+    exclsv_lasso_df = rbind(exclsv_lasso_df, mat_pred_features)
+    
+    exclsv_lasso_sensitivity[i] = calc_sensitivity(true_features_idx, exclsv_lasso_features_idx)
+    exclsv_lasso_fdr[i] = calc_fdr(true_features_idx, exclsv_lasso_features_idx)
+    exclsv_lasso_power = exclsv_lasso_power + calc_power(true_features_idx, 
+                                                         exclsv_lasso_features_idx)
+    
+    exclsv_pre_lasso = 1-exclsv_lasso_fdr[i]
+    exclsv_rec_lasso = exclsv_lasso_sensitivity[i]
+    if(exclsv_pre_lasso + exclsv_rec_lasso > 0){
+      exclsv_lasso_f1[i] = 2*exclsv_pre_lasso*exclsv_rec_lasso/
+        (exclsv_pre_lasso+exclsv_rec_lasso)
+    }else{
+      exclsv_lasso_f1[i] = 0
+    }
+    
+  }
+  
+  exclsv_lasso_stability = calc_stability(exclsv_lasso_df, itr)
+  colNames = c("Model", 
+               "True_Feature_Indexes",
+               "Sensitivity", 
+               "FDR", 
+               "F-1", 
+               "Power", 
+               "Stability")
+  result_exclusv_lasso = data.frame("EXCLUSIVE_LASSO", 
+                                    paste(true_features_idx, collapse=","), 
+                                    mean(exclsv_lasso_sensitivity),               
+                                    mean(mean(exclsv_lasso_fdr)),                                 
+                                    mean(exclsv_lasso_f1),
+                                    paste((exclsv_lasso_power)/itr, collapse = ","),
+                                    exclsv_lasso_stability)
+  colnames(result_exclusv_lasso)=colNames
+  result_exclusv_lasso
+ 
   
 }
 
