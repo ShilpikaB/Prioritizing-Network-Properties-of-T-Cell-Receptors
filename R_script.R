@@ -293,19 +293,40 @@ main_function = function()
   #-----------  
   X_scaled = apply(X, 2, function(y_obsvd) (y_obsvd - mean(y_obsvd)) / sd(y_obsvd) ^ as.logical(sd(y_obsvd)))
   
+  #-----------
+  # GROUP LASSO 
+  #-----------
+  set.seed(25)
+  X = X_scaled
+  
+  # Cross Validation
+  set.seed(25)
+  grp_lasso_features = grp_lasso_cv(X, y_obsvd, 0.065) 
+  grp_lasso_features
+  grp_lasso_grp_idx = select_grps(grp_lasso_features)
+  grp_lasso_grp_idx
+  
+  
+  # Permutation Tuning
+  set.seed(25)
+  grp_plasso_features = grp_plassob(X, y=y_obsvd, pB=10, SS=0.25)
+  grp_plasso_grp_idx = select_grps(grp_plasso_features)
+  grp_plasso_grp_idx
+  
+  
   
   #-----------
   # LASSO 
   #-----------
   # Cross Validation
   set.seed(25)
-  
-  la_cv = cv.glmnet(X_scaled, y=y_obsvd, family="binomial", nfolds=5)
+  la_cv = cv.glmnet(X, y=y_obsvd, family="binomial", nfolds=5, 
+                    alpha = 1)
   paste(round(la_cv$lambda.min,6), round(la_cv$lambda.1se,6))
   plot(la_cv)
   
   set.seed(25)
-  la = glmnet(X_scaled, y=y_obsvd, family="binomial", lambda = la_cv$lambda.min, 
+  la = glmnet(X, y=y_obsvd, family="binomial", lambda = la_cv$lambda.min, 
               alpha = 1)
   
   round(coef(la)[abs(coef(la)[,1]) > 0,],6)
@@ -319,40 +340,12 @@ main_function = function()
   }
   lasso_cv_feature_idx
   
+  
   # LASSO with permutation tuning
   set.seed(25)
   plasso_feature_idx = plassob(X_scaled, y_obsvd, pB=10, SS=0.1)
   plasso_feature_idx
   
-  
-  #-----------
-  # GROUP LASSO 
-  #-----------
-  set.seed(25)
-  X = as.matrix(X_scaled)
-  # group index for X variables
-  v.group = c(1, rep(2,6), rep(3,6), rep(4,6), rep(5,6), rep(6,6), rep(7,6), rep(8,6),	
-              rep(9,7),	rep(10,7), rep(11,6), rep(12,6), rep(13,7), rep(14,6), rep(15,7))
-  
-  # Cross Validation
-  grp_cv = cv.gglasso(X, y=y_obsvd, loss="logit", group = v.group, intercept=T, nfolds=5)
-  paste(round(grp_cv$lambda.min,6), round(grp_cv$lambda.1se,6))
-  plot(grp_cv)
-  
-  
-  set.seed(25)
-  grp_lasso_features = grp_lasso_cv(X, y_obsvd, 0.065) 
-  grp_lasso_features
-  grp_lasso_grp_idx = select_grps(grp_lasso_features)
-  grp_lasso_grp_idx
-  
-  
-  
-  # Permutation Tuning
-  set.seed(25)
-  grp_plasso_features = grp_plassob(X, y=y_obsvd, pB=10, SS=0.1)
-  grp_plasso_grp_idx = select_grps(grp_plasso_features)
-  grp_plasso_grp_idx
   
   
   #------------
@@ -1412,7 +1405,7 @@ X_sim_scaled = apply(X_sim, 2, function(y_lim) (y_lim - mean(y_lim)) / sd(y_lim)
 beta_coef = coef(la)[abs(coef(la)[,1])>0,]  # fetch lasso regression coefficients
 
 # Using artificial lasso coefficients
-beta_artificial = c(-1, rep(0.21,4))
+beta_artificial = c(-1, rep(0.3,4)) # 0.21
 
 #y_sim_initial = y_sim_from_lasso_coeffs(la, X_sim_scaled, artifical=NULL)
 y_sim_initial = y_sim_from_lasso_coeffs(la, X_sim_scaled, artifical=beta_artificial)
@@ -1437,12 +1430,12 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   SS = 0.4 # threshold
   
   #-----------------
-  #Group Lasso with permutation Tuning and cross validation
+  # Group Lasso with cross validation and permutation tuning
   #-----------------
   
   #true_features_idx = grp_lasso_grp_idx # Using group_lasso_cv as reference
-  #true_features_idx = c(5,8,14,15) # Using lasso_cv as reference
-  true_features_idx = c(1,5,6,8,14,15) # Using lasso_cv as reference
+  true_features_idx = c(5,8,14,15) # Using lasso_cv as the true causal variables
+  #true_features_idx = c(1,5,6,8,14,15) # Using lasso_cv as reference
   len_true_features = length(true_features_idx)
   
   grp_plasso_sensitivity = vector(length=itr)
@@ -1460,40 +1453,11 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   set.seed(25)
   for(i in 1:itr)
   {
-    # For group lasso with permutation tuning
-    grp_plasso_features = grp_plassob(X_sim_scaled_dwn, y_sim_dwn, pB, SS)
-    print(paste("GRP PLASSO - Iteration#", i))
-    print("Feature Indexes: ")
-    print(paste(grp_plasso_features, collapse=","))
-    grp_plasso_grp_idx = select_grps(grp_plasso_features)
-    print("Group Indexes: ")
-    print(paste(grp_plasso_grp_idx, collapse=","))
-    len_feature_idx = length(grp_plasso_grp_idx)
-    
-    mat_pred_features = matrix(cbind(grp_plasso_grp_idx,rep(i,len_feature_idx)), nrow = len_feature_idx)
-    grp_plasso_df = rbind(grp_plasso_df, mat_pred_features)
-    
-    grp_plasso_sensitivity[i] = calc_sensitivity(true_features_idx, grp_plasso_grp_idx)
-    grp_plasso_fdr[i] = calc_fdr(true_features_idx, grp_plasso_grp_idx)
-    grp_plasso_power = grp_plasso_power + calc_power(true_features_idx, grp_plasso_grp_idx)
-    
-    pre_grp_plasso = 1-grp_plasso_fdr[i]
-    rec_grp_plasso = grp_plasso_sensitivity[i]
-    if(pre_grp_plasso + rec_grp_plasso > 0){
-      grp_plasso_f1[i] = 2*pre_grp_plasso*rec_grp_plasso/(pre_grp_plasso+rec_grp_plasso)
-    }else{
-      grp_plasso_f1[i] = 0
-    }
-  }
-  
-  set.seed(25)
-  for(i in 1:itr)
-  {
     # For group lasso with cross validation
-    grp_lasso_cv_features = grp_lasso_cv(X_sim_scaled_dwn, y_sim_dwn, 0.025)
+    grp_lasso_cv_features = grp_lasso_cv(X_sim_scaled_dwn, y_sim_dwn, 0)
     print(paste("GRP LASSO CV - Iteration#", i))
-    print("Feature Indexes: ")
-    print(paste(grp_lasso_cv_features, collapse=", "))
+    #print("Feature Indexes: ")
+    #print(paste(grp_lasso_cv_features, collapse=", "))
     grp_lasso_cv_grp_idx = select_grps(grp_lasso_cv_features)
     print("Group Indexes: ")
     print(paste(grp_lasso_cv_grp_idx, collapse=", "))
@@ -1515,6 +1479,36 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
     }
   }
   
+  set.seed(25)
+  for(i in 1:itr)
+  {
+    #i=1
+    # For group lasso with permutation tuning
+    grp_plasso_features = grp_plassob(X_sim_scaled_dwn, y_sim_dwn, pB, SS)
+    print(paste("GRP PLASSO - Iteration#", i))
+    #print("Feature Indexes: ")
+    #print(paste(grp_plasso_features, collapse=","))
+    grp_plasso_grp_idx = select_grps(grp_plasso_features)
+    print("Group Indexes: ")
+    print(paste(grp_plasso_grp_idx, collapse=","))
+    len_feature_idx = length(grp_plasso_grp_idx)
+    
+    mat_pred_features = matrix(cbind(grp_plasso_grp_idx,rep(i,len_feature_idx)), nrow = len_feature_idx)
+    grp_plasso_df = rbind(grp_plasso_df, mat_pred_features)
+    
+    grp_plasso_sensitivity[i] = calc_sensitivity(true_features_idx, grp_plasso_grp_idx)
+    grp_plasso_fdr[i] = calc_fdr(true_features_idx, grp_plasso_grp_idx)
+    grp_plasso_power = grp_plasso_power + calc_power(true_features_idx, grp_plasso_grp_idx)
+    
+    pre_grp_plasso = 1-grp_plasso_fdr[i]
+    rec_grp_plasso = grp_plasso_sensitivity[i]
+    if((pre_grp_plasso + rec_grp_plasso)> 0){
+      grp_plasso_f1[i] = 2*pre_grp_plasso*rec_grp_plasso/(pre_grp_plasso+rec_grp_plasso)
+    }else{
+      grp_plasso_f1[i] = 0
+    }
+  }
+  
   grp_lasso_cv_df%>%
     dplyr::group_by(V1)%>%
     dplyr::summarize(n())
@@ -1522,25 +1516,6 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   grp_plasso_df%>%
     dplyr::group_by(V1)%>%
     dplyr::summarize(n())
-  
-  grp_plasso_stability = calc_stability(grp_plasso_df, itr)
-  colNames = c("Model", 
-               "True_Group_Indexes", 
-               "Sensitivity", 
-               "FDR", 
-               "F-1", 
-               "Power", 
-               "Stability")
-  result_grp_plasso = data.frame("GROUP_PLASSO", 
-                                 paste("Grp-",true_features_idx, collapse=","),
-                                 mean(grp_plasso_sensitivity),
-                                 mean(mean(grp_plasso_fdr)),
-                                 mean(grp_plasso_f1),
-                                 paste((grp_plasso_power)/itr, collapse = ","),
-                                 grp_plasso_stability)
-  colnames(result_grp_plasso)=colNames
-  result_grp_plasso
-  
   
   grp_lasso_cv_stability = calc_stability(grp_lasso_cv_df, itr)
   colNames = c("Model", 
@@ -1558,7 +1533,30 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
                                    paste((grp_lasso_cv_power)/itr, collapse = ","),
                                    grp_lasso_cv_stability)
   colnames(result_grp_lasso_cv)=colNames
+  
+  
+  grp_plasso_stability = calc_stability(grp_plasso_df, itr)
+  colNames = c("Model", 
+               "True_Group_Indexes", 
+               "Sensitivity", 
+               "FDR", 
+               "F-1", 
+               "Power", 
+               "Stability")
+  result_grp_plasso = data.frame("GROUP_PLASSO", 
+                                 paste("Grp-",true_features_idx, collapse=","),
+                                 mean(grp_plasso_sensitivity),
+                                 mean(mean(grp_plasso_fdr)),
+                                 mean(grp_plasso_f1),
+                                 paste((grp_plasso_power)/itr, collapse = ","),
+                                 grp_plasso_stability)
+  colnames(result_grp_plasso)=colNames
+  
   result_grp_lasso_cv
+  result_grp_plasso
+  
+  
+ 
   
   #-----------------
   # LASSO
@@ -1584,9 +1582,10 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   {
     true_features_idx = plasso_feature_idx
     la_cv_sim = cv.glmnet(as.matrix(X_sim_scaled_dwn), y_sim_dwn, 
-                          family="binomial", nfolds=5)
+                          family="binomial", nfolds=5, 
+                          alpha = 1)
     la_sim = glmnet(as.matrix(X_sim_scaled_dwn), y_sim_dwn, family="binomial", 
-                lambda = la_cv_sim$lambda.1se, 
+                lambda = la_cv_sim$lambda.min, 
                 alpha = 1)
     
     lasso_cv_feature_idx = NULL
@@ -1660,7 +1659,8 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
     print(plasso_features_idx)
     len_feature_idx = length(plasso_features_idx)
     
-    mat_pred_features = matrix(cbind(plasso_features_idx,rep(i,len_feature_idx)), nrow = len_feature_idx)
+    mat_pred_features = matrix(cbind(plasso_features_idx,rep(i,len_feature_idx)), 
+                               nrow = len_feature_idx)
     plasso_df = rbind(plasso_df, mat_pred_features)
     
     
@@ -1770,6 +1770,16 @@ trainDown = DownSampling(df_sim, "y_sim_initial")
   result_exclusv_lasso
  
   
+  
+  col_cor = c(25,43,82,89)
+  X_corr = X_scaled[,col_cor]
+  pairs(X_corr)
+  
+  
+  cor_matrix = data.frame(cor(X_corr))
+  ggcorrplot(cor_matrix)+ggtitle("Heat Map for the true causal variables")
+  
+  
 }
 
 #############     END OF MAIN     ####################
@@ -1823,8 +1833,9 @@ y_sim_from_lasso_coeffs = function(la, X_sim_scaled, artifical){
   
   #View(X_sim_scaled)
   
-  df = cbind(X_sim_scaled[,25],X_sim_scaled[,82],X_sim_scaled[,89],X_sim_scaled[,43])
-  z = beta_coef[1] + beta_coef[2]*df[,1] + beta_coef[3]*df[,2] + beta_coef[4]*df[,3] + beta_coef[5]*df[,4]
+  df = cbind(X_sim_scaled[,25],X_sim_scaled[,43],X_sim_scaled[,82],X_sim_scaled[,89])
+  z = beta_coef[1] + beta_coef[2]*df[,1] + beta_coef[3]*df[,2] + 
+    beta_coef[4]*df[,3] + beta_coef[5]*df[,4]
   
   prob = exp(z)/(1+exp(z))
   
@@ -1990,24 +2001,29 @@ select_grps = function(features_idx){
 grp_lasso_cv = function(X, y, lambda_val){
   #X = X_sim_scaled_dwn
   #y = y_sim_dwn
+  #View(X_scaled)
+ # X = X_scaled
+  #y = y_obsvd
   Spi = NULL
   
   # group index for X variables
-  v.group = c(1,	rep(2,6),	rep(3,6),	rep(4,6),	rep(5,6),	rep(6,6),	rep(7,6),	rep(8,6),	
-              rep(9,7),	rep(10,7),	rep(11,6),	rep(12,6),	rep(13,7),	rep(14,6),	rep(15,7))
+  v.group = c(1, rep(2,6),	rep(3,6),	rep(4,6),	rep(5,6),	rep(6,6),	rep(7,6),	
+              rep(8,6),	rep(9,7),	rep(10,7),	rep(11,6),	rep(12,6),	
+              rep(13,7),	rep(14,6),	rep(15,7))
   
   # Cross Validation
-  grp_cv = cv.gglasso(as.matrix(X), y, loss="logit", group = v.group, intercept=F, 
-                      eps=10^(-4),nfolds=5)
+  grp_cv = cv.gglasso(as.matrix(X), y, loss="logit", group = v.group, intercept=T, 
+                      eps=10^(-5), nfolds=5)
   
   
   #paste(round(grp_cv$lambda.min,6), round(grp_cv$lambda.1se,6))
-  #plot(grp_cv)
   
+  lambda_use = grp_cv$lambda.min-lambda_val
   grp_lasso = gglasso(as.matrix(X), y, loss="logit", intercept=F, 
-                      group = v.group, lambda=(grp_cv$lambda.1se-lambda_val), eps=10^(-4)) 
-  #coef(grp_lasso)
+                      group = v.group, lambda=lambda_use, 
+                      eps=10^(-4)) 
   #round(coef(grp_lasso)[abs(coef(grp_lasso)[,1]) > 0,],6) # extract non-zero coefficients
+  
   
   for(i in 2:length(coef(grp_lasso))){
     if(abs(coef(grp_lasso)[i]) > 0){
