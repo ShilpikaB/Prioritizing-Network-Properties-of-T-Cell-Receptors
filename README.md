@@ -1,82 +1,49 @@
-# Background
-Q1. Why are bees important?
-- A third of the world's food production depends on bees.
-- Major pollinators.
+# 1 Introduction
+T cells are crucial components of the adaptive immune system, mediating anti-tumoral immunity and immune response to infections. They are necessary for efective host-response to a wide range of pathogens. T cells are defned by their T cell receptors (TCRs), which are protein complexes on the T-cell surface. TCRs mount a response to harmful foreign invaders by targeting specifc antigens based on nucleotide sequence. TCRs act as the arms of the T cells with memory and can remember harmful pathogens they have seen before, thereby providing a life-long protection which enables a swift response in case of a similar future encounter. Thus, understanding the TCR repertoire could lead to insights regarding immune response pathology while also discovering indicative bio-markers and lead to therapeutic strategies.
+As the immune repertoire ages, it is shaped based on the environmental exposure of an individual throughout their lifetime. Therefore, performing statistical inferences directly on TCR data between subjects is challenging due to its heterogeneous nature. In fact, there is less than 20% overlap across repertoire, even for the same subject. However, it is observed that the similarity among TCRs sequence directly infuences the antigen recognition breadth. Therefore, interrogation of TCR sequence similarity can add an important layer of information. This can be achieved through network property analysis of TCR repertoire. A clonal network is constructed where each clone is defned as a node, and then based on the sequence distance (Levenshtein distance), an edge is drawn based on a certain similarity condition (e.g., one letter diference in sequence).
 
-Q2. Problem
-- Declining bee population.
-- Mites and ants infestation.
-- Frequent check-ups on the hive is desirable to monitor the hive strength and health.
-- Manual investigation of beehives is time intensive and often disrupts the beehive environment.
+### 1.1 Background
+In this work we analysis the data of 65 patients from the Phase I trial (NCT01693562, 14 September 2012) of durvalumab, an immune checkpoint inhibitor (ICI) designed to activate exhausted tumor-reactive T cells. Durvalumab consolidation therapy is administered to patients with stage III, non-small cell lung cancer (NSCLC) and their immunophenotypic responses are observed. The patients exhibiting increased TCR repertoire diversity on day 15 attained signifcantly longer overall survival (OS) than those with decreased diversity. Patients with larger TCR clusters showed improved OS than patients with smaller TCR clusters ([1]Elliot Naidus et al., 2021). It was inferred that early TCR repertoire diversifcation after durvalumab therapy for NSCLC may be predictive of increased survival. Therefore, drawing quantitative analysis of the TCR repertoire in ‘longer overall survival’ and ‘shorter overall survival’ cohorts may provide a better understanding of the immune landscape involving T cell response. This information can then be used to develop tools to improve patient stratifcation, prediction of disease outcome, and patient response to treatments.
 
-# Motivation & Objective
-How can we help ?
-- Improve the ability to understand the hive health without checking for the hive manually.
-- Devise a non-invasive hive health checkup technique using ML.
-- Studies show that honeybee images flying in/out of the hive can be used to draw inferences about the hive's health.
+### 1.2 Motivation & Objective
+The immunophenotypic response data captures the TCR repertoire details for the 65 patients. The TCR network is continually shaping over a patient’s lifetime and is also impacted as a response to the immunotherapy administered to the patient, thereby making the data heterogeneous in nature. The network data captured for our analysis is shown in the Figure 1.1. A total of ffteen network and non-network properties of the TCR repertoire data are used for this work which are referenced as the TCR network properties collectively. Some of these network properties are global and some are clonal (local) network properties ([2]Miho et al., 2019). Another data set representing the overall survival stats for these 65 patients was also referenced. It was also made available that the patients with overall survival months (OS mon) ≥ 20.3 have a higher survival chance than the other patients. For the analysis, the network properties are used as the explanatory variables and the overall survival month (OS mon) as the response variable. Patients with OS mon ≥ 20.3 are categorized into ‘longer overall survival’ group and patients with OS mon < 20.3 are categorized into ‘shorter overall survival’ group. The objective here is to investigate the TCR repertoire network properties and develop novel statistical method to prioritize the important network properties that are associated with the clinical outcome of increased overall survival.
 
-# Contribution
-- Use convolutional neural network (CNN) to design ML models to predict hive health.
-- Assess the models for their performances.
+### Challenges
+The response variable, OS mon, has a defnite value for each of the 65 patients. The TCR network data (the explanatory variables) consists of a mix of global and local variables. The global variables are described by a single set of values, while the local variables are vectors of varying lengths. Since the TCR repertoire is constantly adapting to the health and the environmental factors of the patient, the network properties are continually shaping. Given any two patients the TCR repertoire is never the same. Less than 20% overlap is observed in the TCR repertoires for the same subject. This heterogeneous nature of the TCR repertoire and network properties makes it difcult to perform statistical inference or machine learning directly between subjects. The heterogeneity issue also complicates the data simulation process required to perform the simulation study. Therefore, we require to develop ingenious ways to handle the TCR network data throughout this work and derive meaningful inferences.
+
+### 1.3 Contribution
+- Strategy to extract features from heterogeneous TCR repertoire network data.
+- A novel statistical method to prioritize the network properties - Group Lasso with Permutation Assisted Tuning.
+- Mimicked real property distributions and correlation structure to simulate network properties.
+- Demonstrated proposed methods and schemes using simulation study.
 
 # Dataset Description
-- Our dataset contains 5100+ bee images annotated with location, date, time, subspecies, health condition, caste, and pollen.
-- Dataset link: https://www.kaggle.com/datasets/jenny18/honey-bee-annotated-images
-- The entire dataset was divided into training, validation, and testing roughly in the ratio of 70:20:10.
+- 
 
 # Data Visualization
 <div align="center">
-  <img src="https://user-images.githubusercontent.com/82466266/234079858-790260a7-4263-47c8-9cf8-7a683fcb8fa6.JPG" width=80% height=50%>
+  <img src="" width=80% height=50%>
 </div>
 
 # Methods & Implementation
-<div align="center">
-  <img src="https://user-images.githubusercontent.com/82466266/234070947-a8dbec7f-6c51-4146-bee3-5cce4878ebf3.png" width=50% height=30%>
-</div>
-Based on a given bee (input) image, the classifier would predict the status of the hive. There were six class labels. Convolutional neural network (CNN) has been a popular deep learning model for image classification that has shown remarkable performance. For this project, 2 CNN models are used. 
 
-The first prototype is a CNN written from scratch. There are two convolutional layers followed by a max pooling layer respectively. The first convolutional layer has 32 filters with kernel sizes of 3x3 and a rectified linear unit activation. The second convolutional layer is similar to the first, except it has 64 filters. Each max pooling layer reduces the dimensionality of the previous layer by two. The output layer has six units, which corresponds to the six labels for beehive health. Softmax activation is used to output prediction probability for each label. The model contained 1,223,622 trainable parameters. 
 
-The second CNN is a pretrained model. TensorFlow’s mobile net is chosen as it is a relatively small and efficient CNN2. To make the model suitable (as the model was originally trained for 1,000 different classes) the last six layers were modified so that there were six output classes. In total the model has 3,213,126 trainable parameters.  
-<div align="center">
-  <img src="https://user-images.githubusercontent.com/82466266/234069628-98f9cf4c-0bf8-4107-9162-c48b10d2645e.png" width=40% height=20%>
-</div>
-
-The code was run from Google Colaboratory using GPU mode. For each epoch, the training time varied from 5 to 39 seconds for the first model and from 22 to 24 seconds for the pretrained CNN. Since this was our first attempt towards developing a model using CNN, we referenced a tutorial3 as guidance.
-
-# Code (in Python)
-Jupyter Notebook File: https://github.com/ShilpikaB/Beehive-Health-Prediction_CSC869/blob/main/beeimage-classifier.ipynb
+# Code (in R)
+R code: 
 
 
 # Results
-- On training dataset: 99% Accuracy was achieved for both the CNN models.
-- On validation dataset: 86% and 88% Accuracy for the initial model and the pretrained models.
-- On the test dataset: 86% and 96% Accuracy for the initial and the pretrained models.
-- The confusion matrix for these multilabel classifiers and used the matrix to calculate precision, recall, f1 measure, receiver operating characteristic (ROC) curve, and area under curve (AUC) on the test dataset. We use the one-vs-the-rest(OvR) multiclass strategy to derive the ROC and AUC.
-<div align="center">
-  <img src="https://user-images.githubusercontent.com/82466266/234068926-5a3dfad1-300a-450b-81c5-cb31966e3ea6.JPG" width=80% height=10%>
-  <img src="https://user-images.githubusercontent.com/82466266/234068967-cf598347-c252-4604-bf5e-d91cb72445e9.JPG" width=80% height=20%>
-  <img src="https://user-images.githubusercontent.com/82466266/234068782-9b4992eb-0837-48b9-be52-d713daa523a8.png" width=80% height=30%>
-</div>
+- 
 
 
 # Discussion
-In the first model, a unique pattern was observed in the confusion matrix. The vast majority of incorrect predictions for the label ‘HiveBeingRobbed’ belonged to the class label ‘Healthy’ and vice-versa. This indicates that data for these two class labels may have some overlapping attributes as a result of which the model is unable to differentiate the two labels. Looking back into the definitions of a robber bee (which cater to ‘HiveBeingRobbed’ status) and healthy bee, the below assumption can be made.
 
-### Inference: 
-Robber bees usually fly towards a hive to destroy the hive and steal any stored nectar. These robber bees have shiny bodies with no pollen. On the other hand, healthy bees when leaving the hive also have shiny bodies and do not have any pollen. They will only have pollen on their bodies when they return to the hive after collecting nectar. Therefore, it is likely for our model to incorrectly distinguish between robber bees and healthy bees since the input data set does not contain any information about the direction with respect to the hive. That is, we cannot conclude whether a bee is flying into or out of the hive which would be essential to differentiate between robber bees flying towards a hive and healthy bees flying away from the hive.
-
-### Conclusion 
-- The pretrained CNN model had an improved performance than the CNN model prototype..
-- The first model performs poorly for the ‘HiveBeingRobbed’ label. The same is reflected in the ROC and AUC for this label where we see that ‘HiveBeingRobbed’ has the lowest AUC. The pretrained model also did not show any significant improvement for this label. However, the performance for the other class labels were drastically improved. This implies that the pretrained model was able to improve the overall image classification problem and also strengthens our assumption that the issue with ‘HiveBeingRobbed’ is at the input data level and not with the model.
-
-### Future Direction
-- Randomize and automate the dataset segregation into the train/validate/test data sets.
-- Dataset currently has no way to identify the direction of flight of the bees - towards or away from the hive. The direction of flight of bees helps to identify the difference between the robber and healthy bees.
-- MissingQueen data has very few images, and all are most likely for the same hive, therefore the model could be learning based on the image background.
 
 
 # References
-- https://www.kaggle.com/jenny18/honey-bee-annotated-images
-- https://arxiv.org/abs/1704.04861
-- https://deeplizard.com/learn/video/RznKVRTFkBY
+- Elliot Naidus, Jerome Bouquet, David Y. Oh, Timothy J. Looney, Hai Yang, Lawrence Fong, Nathan E. Standifer, Li Zhang. “Early changes in the circulating T cells are associated with clinical outcomes after PD-L1 blockade by durvalumab in advanced NSCLC patients”. In: Cancer Immunology, Immunotherapy 70:2095–2102 (2021).
+- Enkelejda Miho, Rok Roskar, Victor Greif and Sai T.Reddy. “Large-scale network analysis reveals the sequence space architecture of antibody repertoires”. In: Nature Communications 10:1321 (2019).
+- Ming Yuan and Yi Lin. “Model selection and estimation in regression with grouped variables”. In: Journal of the Royal Statistical Society. Series B 68.Part 1 (2006), pp. 49–67.
+- Songshan Yang, Jiawei Wen, Scott T. Eckert, Yaqun Wang, Dajiang J. Liu, Rongling Wu, Runze Li1 and Xiang Zhan. “Prioritizing genetic variants in GWAS with lasso using permutation-assisted tuning”. In: Bioinformatics 36:3811-7 (2020).
+- Robert Tibshirani. “Regression Shrinkage and Selection via the Lasso”. In: Journal of the Royal Statistical Society. Series B (Methodological) 58 (1996), pp. 267–288.
+- Yang Zhou, Rong Jin, Steven C. H. Hoi. “Exclusive Lasso for Multi-task Feature Selection”. In: JMLR Workshop and Conference Proceedings: 13th International Conference on Artifcial Intelligence and Statistics (AISTATS) 9 (2010), pp. 988–995.
