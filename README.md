@@ -9,7 +9,10 @@ In this work we analysis the data of 65 patients from the Phase I trial (NCT0169
 The immunophenotypic response data captures the TCR repertoire details for the 65 patients. The TCR network is continually shaping over a patient’s lifetime and is also impacted as a response to the immunotherapy administered to the patient, thereby making the data heterogeneous in nature. The network data captured for our analysis is shown in the Figure 1.1. A total of ffteen network and non-network properties of the TCR repertoire data are used for this work which are referenced as the TCR network properties collectively. Some of these network properties are global and some are clonal (local) network properties ([2]Miho et al., 2019). Another data set representing the overall survival stats for these 65 patients was also referenced. It was also made available that the patients with overall survival months (OS mon) ≥ 20.3 have a higher survival chance than the other patients. For the analysis, the network properties are used as the explanatory variables and the overall survival month (OS mon) as the response variable. Patients with OS mon ≥ 20.3 are categorized into ‘longer overall survival’ group and patients with OS mon < 20.3 are categorized into ‘shorter overall survival’ group. The objective here is to investigate the TCR repertoire network properties and develop novel statistical method to prioritize the important network properties that are associated with the clinical outcome of increased overall survival.
 
 ### Challenges
-The response variable, OS mon, has a defnite value for each of the 65 patients. The TCR network data (the explanatory variables) consists of a mix of global and local variables. The global variables are described by a single set of values, while the local variables are vectors of varying lengths. Since the TCR repertoire is constantly adapting to the health and the environmental factors of the patient, the network properties are continually shaping. Given any two patients the TCR repertoire is never the same. Less than 20% overlap is observed in the TCR repertoires for the same subject. This heterogeneous nature of the TCR repertoire and network properties makes it difcult to perform statistical inference or machine learning directly between subjects. The heterogeneity issue also complicates the data simulation process required to perform the simulation study. Therefore, we require to develop ingenious ways to handle the TCR network data throughout this work and derive meaningful inferences.
+- The TCR network data consists of a mix of global and local variables. Some properties are described by a single set of values, other variables are vectors of varying lengths.
+- Since the TCR repertoire is constantly adapting to the health and the environmental factors of the patient, the network properties are continually shaping. Given any two patients the TCR repertoire is never the same. 
+- Less than 20% overlap is observed in the TCR repertoires for the same subject. This heterogeneous nature of the TCR repertoire and network properties makes it difcult to perform statistical inference or machine learning directly between subjects. 
+- Heterogeneity also complicates the data simulation process required to perform the simulation study. Therefore, we require to develop ingenious ways to handle the TCR network data throughout this work and derive meaningful inferences.
 
 ### 1.3 Contribution
 - Strategy to extract features from heterogeneous TCR repertoire network data.
@@ -17,19 +20,14 @@ The response variable, OS mon, has a defnite value for each of the 65 patients. 
 - Mimicked real property distributions and correlation structure to simulate network properties.
 - Demonstrated proposed methods and schemes using simulation study.
 
-# Dataset Description
-- 
 
-# Data Visualization
+# Methods & Implementation
 <div align="center">
   <img src="" width=80% height=50%>
 </div>
 
-# Methods & Implementation
-
-
 # Code (in R)
-R code: 
+R code: https://github.com/ShilpikaB/Prioritizing-Network-Properties-of-T-Cell-Receptors/blob/main/R_script.R
 
 
 # Results
